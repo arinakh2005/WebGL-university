@@ -21,12 +21,10 @@ function Model(name, radius, corrugation, waveCount, linesCount) {
     this.n = waveCount;
     this.segmentsU = linesCount;
     this.segmentsV = linesCount;
-
     this.uVertexBuffer = gl.createBuffer();
     this.vVertexBuffer = gl.createBuffer();
-    this.uVertexCount = 0;
-    this.vVertexCount = 0;
 
+    /** Generates vertices for the U curve of the corrugated sphere. **/
     this.createUVertices = () => {
         const vertices = [];
         const R = this.radius;
@@ -52,6 +50,7 @@ function Model(name, radius, corrugation, waveCount, linesCount) {
         return vertices;
     };
 
+    /** Generates vertices for the V curve of the corrugated sphere. **/
     this.createVVertices = () => {
         const vertices = [];
         const R = this.radius;
@@ -78,23 +77,23 @@ function Model(name, radius, corrugation, waveCount, linesCount) {
         return vertices;
     };
 
+    /** Buffers the vertex data for U and V curves in the WebGL context. **/
     this.bufferData = () => {
         const uVertices = this.createUVertices();
         gl.bindBuffer(gl.ARRAY_BUFFER, this.uVertexBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uVertices), gl.STATIC_DRAW);
-        this.uVertexCount = uVertices.length / 3;
 
         const vVertices = this.createVVertices();
         gl.bindBuffer(gl.ARRAY_BUFFER, this.vVertexBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vVertices), gl.STATIC_DRAW);
-        this.vVertexCount = vVertices.length / 3;
     };
 
+    /** Draws the corrugated sphere model using buffered vertex data. **/
     this.draw = () => {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.uVertexBuffer);
         gl.vertexAttribPointer(shaderProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(shaderProgram.iAttribVertex);
-        gl.uniform4fv(shaderProgram.iColor, [0, 1, 0, 1]);
+        gl.uniform4fv(shaderProgram.iColor, [1, 0, 0, 1]);
         for (let i = 0; i < this.segmentsU; i++) {
             gl.drawArrays(gl.LINE_STRIP, i * (this.segmentsV + 1), this.segmentsV + 1);
         }
