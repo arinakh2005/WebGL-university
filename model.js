@@ -7,103 +7,117 @@
  *     y = R * cos(v) + a * (1 − sin(v)) * cos(n * φ) * sin(φ)
  *     z = R * sin(v)
  *
- * @param {string} name - The name of the model
+ * @param {WebGLRenderingContext} gl - The WebGL rendering context.
+ * @param {ShaderProgram} shaderProgram - The shader program to be used for rendering the model.
  * @param {number} radius - The radius of the sphere (R)
  * @param {number} corrugation - The corrugation amplitude (a)
  * @param {number} waveCount - The number of waves (n)
- * @param {number} linesCount - The number of lines for modeling
+ * @param {number} segmentsCountByU - The number of segments U
+ * @param {number} segmentsCountByV - The number of segments V
  * @constructor
  */
-function Model(name, radius, corrugation, waveCount, linesCount) {
-    this.name = name;
-    this.radius = radius;
-    this.corrugation = corrugation;
-    this.n = waveCount;
-    this.segmentsU = linesCount;
-    this.segmentsV = linesCount;
-    this.uVertexBuffer = gl.createBuffer();
-    this.vVertexBuffer = gl.createBuffer();
+export class Model {
+    constructor(gl, shaderProgram, radius, corrugation, waveCount, segmentsCountByU, segmentsCountByV) {
+        this.gl = gl;
+        this.shaderProgram = shaderProgram;
+        this.radius = radius;
+        this.a = corrugation;
+        this.n = waveCount;
+        this.segmentsCountU = segmentsCountByU;
+        this.segmentsCountV = segmentsCountByV;
+        this.vertexBuffer = this.gl.createBuffer();
+        this.indexBuffer = this.gl.createBuffer();
+        this.normalBuffer = this.gl.createBuffer();
 
-    /** Generates vertices for the U curve of the corrugated sphere. **/
-    this.createUVertices = () => {
+        this.bufferData();
+    }
+
+    /** Generates vertices for drawing the corrugated sphere. **/
+    getVertices() {
         const vertices = [];
-        const R = this.radius;
-        const a = this.corrugation;
-        const n = this.n;
 
-        for (let i = 0; i <= this.segmentsU; i++) {
-            const phi = (i / this.segmentsU) * 2 * Math.PI;
+        for (let i = 0; i <= this.segmentsCountU; i++) {
+            const phi = (i / this.segmentsCountU) * 2 * Math.PI;
 
-            for (let j = 0; j <= this.segmentsV; j++) {
-                const v = (j / this.segmentsV) * Math.PI;
+            for (let j = 0; j <= this.segmentsCountV; j++) {
+                const v = (j / this.segmentsCountV) * Math.PI;
                 const cosV = Math.cos(v);
                 const sinV = Math.sin(v);
-                const similarPart = R * cosV + a * (1 - sinV) * Math.cos(n * phi);
+                const similarPart = this.radius * cosV + this.a * (1 - sinV) * Math.cos(this.n * phi);
                 const x = similarPart * Math.cos(phi);
                 const y = similarPart * Math.sin(phi);
-                const z = R * sinV;
+                const z = this.radius * sinV;
 
                 vertices.push(x, y, z);
             }
         }
 
         return vertices;
-    };
+    }
 
-    /** Generates vertices for the V curve of the corrugated sphere. **/
-    this.createVVertices = () => {
-        const vertices = [];
-        const R = this.radius;
-        const a = this.corrugation;
-        const n = this.n;
+    /** Generates indices for drawing the corrugated sphere. **/
+    getIndices() {
+        const indices = [];
 
-        for (let j = 0; j <= this.segmentsV; j++) {
-            const v = (j / this.segmentsV) * Math.PI;
+        for (let i = 0; i < this.segmentsCountU; i++) {
+            for (let j = 0; j < this.segmentsCountV; j++) {
+                const point = i * (this.segmentsCountV + 1) + j;
+                const pointInNextRow = point + (this.segmentsCountV + 1);
 
-            for (let i = 0; i <= this.segmentsU; i++) {
-                const phi = (i / this.segmentsU) * 2 * Math.PI;
-                const cosV = Math.cos(v);
-                const sinV = Math.sin(v);
-                const cosNPhi = Math.cos(n * phi);
-                const similarPart = R * cosV + a * (1 - sinV) * cosNPhi;
-                const x = similarPart * Math.cos(phi);
-                const y = similarPart * Math.sin(phi);
-                const z = R * sinV;
-
-                vertices.push(x, y, z);
+                indices.push(point, pointInNextRow, point + 1);
+                indices.push(point + 1, pointInNextRow, pointInNextRow + 1);
             }
         }
 
-        return vertices;
-    };
+        return indices;
+    }
+
+    /** Generates normals for drawing the corrugated sphere. **/
+    getNormals() {
+        const normals = [];
+
+        for (let i = 0; i <= this.segmentsCountU; i++) {
+            const phi = (i / this.segmentsCountU) * 2 * Math.PI;
+
+            for (let j = 0; j <= this.segmentsCountV; j++) {
+                const v = (j / this.segmentsCountV) * Math.PI;
+                const nx = Math.cos(v) * Math.cos(phi);
+                const ny = Math.cos(v) * Math.sin(phi);
+                const nz = Math.sin(v);
+
+                normals.push(nx, ny, nz);
+            }
+        }
+
+        return normals;
+    }
 
     /** Buffers the vertex data for U and V curves in the WebGL context. **/
-    this.bufferData = () => {
-        const uVertices = this.createUVertices();
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.uVertexBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uVertices), gl.STATIC_DRAW);
+    bufferData() {
+        const vertices = this.getVertices();
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vertexBuffer);
+        this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(vertices), this.gl.STATIC_DRAW);
 
-        const vVertices = this.createVVertices();
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.vVertexBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vVertices), gl.STATIC_DRAW);
-    };
+        const normals = this.getNormals();
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.normalBuffer);
+        this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(normals), this.gl.STATIC_DRAW);
 
-    /** Draws the corrugated sphere model using buffered vertex data. **/
-    this.draw = () => {
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.uVertexBuffer);
-        gl.vertexAttribPointer(shaderProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(shaderProgram.iAttribVertex);
-        gl.uniform4fv(shaderProgram.iColor, [1, 0, 0, 1]);
-        for (let i = 0; i < this.segmentsU; i++) {
-            gl.drawArrays(gl.LINE_STRIP, i * (this.segmentsV + 1), this.segmentsV + 1);
-        }
+        const indices = this.getIndices();
+        this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+        this.gl.bufferData(this.gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), this.gl.STATIC_DRAW);
+    }
 
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.vVertexBuffer);
-        gl.vertexAttribPointer(shaderProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(shaderProgram.iAttribVertex);
-        gl.uniform4fv(shaderProgram.iColor, [0, 0, 1, 1]);
-        for (let i = 0; i < this.segmentsV; i++) {
-            gl.drawArrays(gl.LINE_STRIP, i * (this.segmentsU + 1), this.segmentsU + 1);
-        }
-    };
+    /** Draws the corrugated sphere model using buffered vertex and index data. **/
+    draw() {
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vertexBuffer);
+        this.gl.vertexAttribPointer(this.shaderProgram.aVertex, 3, this.gl.FLOAT, false, 0, 0);
+        this.gl.enableVertexAttribArray(this.shaderProgram.aVertex);
+
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.normalBuffer);
+        this.gl.vertexAttribPointer(this.shaderProgram.aNormal, 3, this.gl.FLOAT, false, 0, 0);
+        this.gl.enableVertexAttribArray(this.shaderProgram.aNormal);
+
+        this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+        this.gl.drawElements(this.gl.TRIANGLES, this.segmentsCountU * this.segmentsCountV * 6, this.gl.UNSIGNED_SHORT, 0);
+    }
 }

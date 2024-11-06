@@ -1,23 +1,23 @@
 'use strict';
 
+import { Model } from './model.js';
+
 let gl;
 let model;
 let shaderProgram;
 let spaceBall;
 
-function ShaderProgram(name, program) {
-    this.name = name;
-    this.program = program;
+class ShaderProgram {
+    constructor(name, program) {
+        this.program = program;
+    }
 
-    // Attribute and uniform locations
-    this.iAttribVertex = -1;
-    this.iColor = -1;
-    this.iModelViewProjectionMatrix = -1;
-
-    this.use = function() { gl.useProgram(this.program) };
+    use() {
+        gl.useProgram(this.program);
+    }
 }
 
-function init() {
+export function init() {
     let canvas;
     try {
         canvas = document.getElementById('webglcanvas');
@@ -47,9 +47,15 @@ function initGL() {
     shaderProgram.use();
 
     // Get attribute and uniform locations
-    shaderProgram.iAttribVertex = gl.getAttribLocation(program, 'vertex');
-    shaderProgram.iModelViewProjectionMatrix = gl.getUniformLocation(program, 'ModelViewProjectionMatrix');
-    shaderProgram.iColor = gl.getUniformLocation(program, 'color');
+    shaderProgram.aVertex = gl.getAttribLocation(program, 'aVertex');
+    shaderProgram.aNormal = gl.getAttribLocation(program, 'aNormal');
+    shaderProgram.uModelViewProjectionMatrix = gl.getUniformLocation(program, 'uModelViewProjectionMatrix');
+    shaderProgram.uLightPosition = gl.getUniformLocation(program, 'uLightPosition');
+    shaderProgram.uAmbientColor = gl.getUniformLocation(program, 'uAmbientColor');
+    shaderProgram.uDiffuseColor = gl.getUniformLocation(program, 'uDiffuseColor');
+    shaderProgram.uSpecularColor = gl.getUniformLocation(program, 'uSpecularColor');
+    shaderProgram.uShininess = gl.getUniformLocation(program, 'uShininess');
+    shaderProgram.uColor = gl.getUniformLocation(program, 'uColor');
 }
 
 function render() {
@@ -97,7 +103,14 @@ function draw() {
     modelView = m4.multiply(translate, modelView);
 
     const modelViewProjection = m4.multiply(projection, modelView);
-    gl.uniformMatrix4fv(shaderProgram.iModelViewProjectionMatrix, false, modelViewProjection);
+    gl.uniformMatrix4fv(shaderProgram.uModelViewProjectionMatrix, false, modelViewProjection);
+    gl.uniform3fv(shaderProgram.uColor, [1.0, 0.0, 0.0]);
+    gl.uniform3fv(shaderProgram.uLightPosition, [1.0, 2.0, 2.0]);
+    gl.uniform3fv(shaderProgram.uAmbientColor, [0.1, 0.1, 0.1]);
+    gl.uniform3fv(shaderProgram.uDiffuseColor, [1.0, 1.0, 1.0]);
+    gl.uniform3fv(shaderProgram.uSpecularColor, [1.0, 1.0, 1.0]);
+    gl.uniform1f(shaderProgram.uShininess, 32.0);
+
     updateModel();
 }
 
@@ -105,10 +118,19 @@ function updateModel() {
     const radius = parseFloat(document.getElementById('radius').value);
     const amplitude = parseFloat(document.getElementById('amplitude').value);
     const wavesCount = parseInt(document.getElementById('wavesCount').value);
-    const linesCount = parseInt(document.getElementById('linesCount').value);
+    const segmentsCountByU = parseInt(document.getElementById('segmentsCountByU').value);
+    const segmentsCountByV = parseInt(document.getElementById('segmentsCountByV').value);
 
-    model = new Model('CorrugatedSphere', radius, amplitude, wavesCount, linesCount);
+    updateCurrentValue('segmentsCountByU', segmentsCountByU);
+    updateCurrentValue('segmentsCountByV', segmentsCountByV);
+
+    model = new Model(gl, shaderProgram, radius, amplitude, wavesCount, segmentsCountByU, segmentsCountByV);
     model.bufferData();
     model.draw();
 }
 
+function updateCurrentValue(elementId, value) {
+    document.getElementById(elementId + 'Value').textContent = value;
+}
+
+window.onload = init;
