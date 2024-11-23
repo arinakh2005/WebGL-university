@@ -6,6 +6,12 @@ let gl;
 let model;
 let shaderProgram;
 let spaceBall;
+let lightConfig = {
+    position: [1.0, 2.0, 5.0],
+    angle: 0,
+    radius: 10,
+    speed: 0.075,
+};
 
 class ShaderProgram {
     constructor(name, program) {
@@ -59,8 +65,10 @@ function initGL() {
 }
 
 function render() {
-    draw();
-    requestAnimationFrame(render);
+    setInterval(() => {
+        updateLightPosition();
+        draw()
+    }, 50);
 }
 
 function createProgram(gl, vShader, fShader) {
@@ -105,13 +113,19 @@ function draw() {
     const modelViewProjection = m4.multiply(projection, modelView);
     gl.uniformMatrix4fv(shaderProgram.uModelViewProjectionMatrix, false, modelViewProjection);
     gl.uniform3fv(shaderProgram.uColor, [1.0, 0.0, 0.0]);
-    gl.uniform3fv(shaderProgram.uLightPosition, [1.0, 2.0, 2.0]);
+    gl.uniform3fv(shaderProgram.uLightPosition, lightConfig.position);
     gl.uniform3fv(shaderProgram.uAmbientColor, [0.1, 0.1, 0.1]);
     gl.uniform3fv(shaderProgram.uDiffuseColor, [1.0, 1.0, 1.0]);
     gl.uniform3fv(shaderProgram.uSpecularColor, [1.0, 1.0, 1.0]);
     gl.uniform1f(shaderProgram.uShininess, 32.0);
 
     updateModel();
+}
+
+function updateLightPosition() {
+    lightConfig.angle += lightConfig.speed;
+    lightConfig.position[0] = lightConfig.radius * Math.cos(lightConfig.angle);
+    lightConfig.position[1] = lightConfig.radius * Math.sin(lightConfig.angle);
 }
 
 function updateModel() {
