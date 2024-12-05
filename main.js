@@ -12,6 +12,7 @@ let lightConfig = {
     radius: 10,
     speed: 0.075,
 };
+let textureCatalog;
 
 class ShaderProgram {
     constructor(name, program) {
@@ -55,13 +56,18 @@ function initGL() {
     // Get attribute and uniform locations
     shaderProgram.aVertex = gl.getAttribLocation(program, 'aVertex');
     shaderProgram.aNormal = gl.getAttribLocation(program, 'aNormal');
+    shaderProgram.aTexCoord = gl.getAttribLocation(program, 'aTexCoord');
     shaderProgram.uModelViewProjectionMatrix = gl.getUniformLocation(program, 'uModelViewProjectionMatrix');
     shaderProgram.uLightPosition = gl.getUniformLocation(program, 'uLightPosition');
     shaderProgram.uAmbientColor = gl.getUniformLocation(program, 'uAmbientColor');
     shaderProgram.uDiffuseColor = gl.getUniformLocation(program, 'uDiffuseColor');
     shaderProgram.uSpecularColor = gl.getUniformLocation(program, 'uSpecularColor');
     shaderProgram.uShininess = gl.getUniformLocation(program, 'uShininess');
-    shaderProgram.uColor = gl.getUniformLocation(program, 'uColor');
+    shaderProgram.uDiffuseSampler = gl.getUniformLocation(program, 'uDiffuseSampler');
+    shaderProgram.uSpecularSampler = gl.getUniformLocation(program, 'uSpecularSampler');
+    shaderProgram.uNormalSampler = gl.getUniformLocation(program, 'uNormalSampler');
+
+    initTextures();
 }
 
 function render() {
@@ -112,14 +118,55 @@ function draw() {
 
     const modelViewProjection = m4.multiply(projection, modelView);
     gl.uniformMatrix4fv(shaderProgram.uModelViewProjectionMatrix, false, modelViewProjection);
-    gl.uniform3fv(shaderProgram.uColor, [1.0, 0.0, 0.0]);
+
     gl.uniform3fv(shaderProgram.uLightPosition, lightConfig.position);
     gl.uniform3fv(shaderProgram.uAmbientColor, [0.1, 0.1, 0.1]);
     gl.uniform3fv(shaderProgram.uDiffuseColor, [1.0, 1.0, 1.0]);
     gl.uniform3fv(shaderProgram.uSpecularColor, [1.0, 1.0, 1.0]);
     gl.uniform1f(shaderProgram.uShininess, 32.0);
 
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, textureCatalog.diffuse);
+    gl.uniform1i(shaderProgram.uDiffuseSampler, 0);
+
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, textureCatalog.specular);
+    gl.uniform1i(shaderProgram.uSpecularSampler, 1);
+
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, textureCatalog.normal);
+    gl.uniform1i(shaderProgram.uNormalSampler, 2);
+
     updateModel();
+}
+
+function initTextures() {
+    textureCatalog = {
+        diffuse: gl.createTexture(),
+        specular: gl.createTexture(),
+        normal: gl.createTexture(),
+    };
+
+    const images = {
+        diffuse: "./image3.jpg",
+        specular: "./image2.jpg",
+        normal: "./image1.jpg",
+    };
+
+    function loadTexture(textureType, imageSrc) {
+        const image = new Image();
+        image.onload = () => {
+            gl.bindTexture(gl.TEXTURE_2D, textureCatalog[textureType]);
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
+            gl.generateMipmap(gl.TEXTURE_2D);
+        };
+        image.src = imageSrc;
+    }
+
+    loadTexture('diffuse', images.diffuse);
+    loadTexture('specular', images.specular);
+    loadTexture('normal', images.normal);
 }
 
 function updateLightPosition() {

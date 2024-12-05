@@ -28,6 +28,7 @@ export class Model {
         this.vertexBuffer = this.gl.createBuffer();
         this.indexBuffer = this.gl.createBuffer();
         this.normalBuffer = this.gl.createBuffer();
+        this.textureBuffer = this.gl.createBuffer();
 
         this.bufferData();
     }
@@ -70,26 +71,6 @@ export class Model {
         }
 
         return indices;
-    }
-
-    /** Generates normals for drawing the corrugated sphere. **/
-    getNormals() {
-        const normals = [];
-
-        for (let i = 0; i <= this.segmentsCountU; i++) {
-            const phi = (i / this.segmentsCountU) * 2 * Math.PI;
-
-            for (let j = 0; j <= this.segmentsCountV; j++) {
-                const v = (j / this.segmentsCountV) * Math.PI;
-                const nx = Math.cos(v) * Math.cos(phi);
-                const ny = Math.cos(v) * Math.sin(phi);
-                const nz = Math.sin(v);
-
-                normals.push(nx, ny, nz);
-            }
-        }
-
-        return normals;
     }
 
     /** Generates facet-weighted normals for drawing the corrugated sphere. **/
@@ -142,6 +123,24 @@ export class Model {
         return normals;
     }
 
+    getTextureCoordinates() {
+        const textureCoordinates = [];
+
+        for (let i = 0; i <= this.segmentsCountU; i++) {
+            const phi = (i / this.segmentsCountU) * 2 * Math.PI;
+
+            for (let j = 0; j <= this.segmentsCountV; j++) {
+                const theta = (j / this.segmentsCountV) * Math.PI;
+                const u = phi / (2 * Math.PI);
+                const t = theta / Math.PI;
+
+                textureCoordinates.push(u, t);
+            }
+        }
+
+        return textureCoordinates;
+    }
+
     /** Buffers the vertex data for U and V curves in the WebGL context. **/
     bufferData() {
         const vertices = this.getVertices();
@@ -155,6 +154,10 @@ export class Model {
         const normals = this.getFacetWeightedNormals(vertices, indices);
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.normalBuffer);
         this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(normals), this.gl.STATIC_DRAW);
+
+        const textureCoordinates = this.getTextureCoordinates();
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.textureBuffer);
+        this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(textureCoordinates), this.gl.STATIC_DRAW);
     }
 
     /** Draws the corrugated sphere model using buffered vertex and index data. **/
@@ -166,6 +169,10 @@ export class Model {
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.normalBuffer);
         this.gl.vertexAttribPointer(this.shaderProgram.aNormal, 3, this.gl.FLOAT, false, 0, 0);
         this.gl.enableVertexAttribArray(this.shaderProgram.aNormal);
+
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.textureBuffer);
+        this.gl.vertexAttribPointer(this.shaderProgram.aTexCoord, 2, this.gl.FLOAT, false, 0, 0);
+        this.gl.enableVertexAttribArray(this.shaderProgram.aTexCoord);
 
         this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
         this.gl.drawElements(this.gl.TRIANGLES, this.segmentsCountU * this.segmentsCountV * 6, this.gl.UNSIGNED_SHORT, 0);
