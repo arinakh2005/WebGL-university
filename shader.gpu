@@ -4,15 +4,20 @@ const vertexShaderSource = `
     attribute vec3 aVertex;
     attribute vec3 aNormal;
 
-    uniform mat4 uModelViewProjectionMatrix;
+    uniform float uScaleFactor;
+    uniform vec2 uScaleCenter;
     uniform vec3 uLightPosition;
+    uniform mat4 uModelViewProjectionMatrix;
 
     varying vec2 vTexCoord;
     varying vec3 vNormal;
     varying vec3 vPosition;
 
     void main() {
-        vTexCoord = aTexCoord;
+        vec2 centeredTexCoord = aTexCoord - uScaleCenter;
+        vec2 scaledTexCoord = centeredTexCoord / uScaleFactor;
+
+        vTexCoord = scaledTexCoord + uScaleCenter;
         vNormal = aNormal;
         vPosition = aVertex;
 

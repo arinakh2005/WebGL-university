@@ -12,6 +12,11 @@ let lightConfig = {
     radius: 10,
     speed: 0.075,
 };
+let scaleConfig = {
+    factor: 1.0,
+    point: [0.5, 0.5],
+    step: 0.5,
+};
 let textureCatalog;
 
 class ShaderProgram {
@@ -58,6 +63,8 @@ function initGL() {
     shaderProgram.aNormal = gl.getAttribLocation(program, 'aNormal');
     shaderProgram.aTexCoord = gl.getAttribLocation(program, 'aTexCoord');
     shaderProgram.uModelViewProjectionMatrix = gl.getUniformLocation(program, 'uModelViewProjectionMatrix');
+    shaderProgram.uScaleFactor = gl.getUniformLocation(program, 'uScaleFactor');
+    shaderProgram.uScaleCenter = gl.getUniformLocation(program, 'uScaleCenter');
     shaderProgram.uLightPosition = gl.getUniformLocation(program, 'uLightPosition');
     shaderProgram.uAmbientColor = gl.getUniformLocation(program, 'uAmbientColor');
     shaderProgram.uDiffuseColor = gl.getUniformLocation(program, 'uDiffuseColor');
@@ -118,6 +125,9 @@ function draw() {
 
     const modelViewProjection = m4.multiply(projection, modelView);
     gl.uniformMatrix4fv(shaderProgram.uModelViewProjectionMatrix, false, modelViewProjection);
+
+    gl.uniform1f(shaderProgram.uScaleFactor, scaleConfig.factor);
+    gl.uniform2fv(shaderProgram.uScaleCenter, scaleConfig.point);
 
     gl.uniform3fv(shaderProgram.uLightPosition, lightConfig.position);
     gl.uniform3fv(shaderProgram.uAmbientColor, [0.1, 0.1, 0.1]);
@@ -195,3 +205,27 @@ function updateCurrentValue(elementId, value) {
 }
 
 window.onload = init;
+
+document.addEventListener('keydown', ($event) => {
+    switch ($event.key) {
+        case 'a':
+            scaleConfig.point[0] -= scaleConfig.step;
+            break;
+        case 'd':
+            scaleConfig.point[0] += scaleConfig.step;
+            break;
+        case 'w':
+            scaleConfig.point[1] += scaleConfig.step;
+            break;
+        case 's':
+            scaleConfig.point[1] -= scaleConfig.step;
+            break;
+        case '=':
+            scaleConfig.factor *= 1.1;
+            break;
+        case '-':
+            scaleConfig.factor /= 1.1;
+            break;
+    }
+    draw();
+});
